@@ -1,0 +1,9 @@
+{
+  "diagnostics": {
+    "parameters": {
+      "LineLength": {
+        "maxLineLength": 200
+      }
+    }
+  }
+}

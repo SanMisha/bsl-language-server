@@ -1,0 +1,10 @@
+{
+  "language": "ru",
+  "diagnostics": {
+    "parameters": {
+      "Typo": {
+        "minWordLength": 3
+      }
+    }
+  }
+}

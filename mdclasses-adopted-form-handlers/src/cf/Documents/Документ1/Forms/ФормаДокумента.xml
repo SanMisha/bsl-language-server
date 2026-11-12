@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" version="2.11">
+  <Form uuid="8c52339a-603d-41f2-8338-a4bd33404ca7">
+    <Properties>
+      <Name>ФормаДокумента</Name>
+      <FormType>Managed</FormType>
+    </Properties>
+  </Form>
+</MetaDataObject>

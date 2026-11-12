@@ -9,3 +9,7 @@
 | [bsl-ls-fp-event-handler-without-helper](bsl-ls-fp-event-handler-without-helper) | Без синтакс-помощника `EventHandlerInvalidSignature` помечает правильный обработчик события элемента формы |
 | [bsl-ls-analyze-deadlock-extension](bsl-ls-analyze-deadlock-extension) | `analyze` зависает, если модуль объекта документа есть и в основной конфигурации, и в расширении |
 | [mdclasses-borrowed-common-module](mdclasses-borrowed-common-module) | `Solution` не находит по URI `Module.bsl` заимствованного общего модуля из расширения |
+| [mdclasses-solution-use-purposes](mdclasses-solution-use-purposes) | Решение из одного расширения получает пустой `usePurposes`, и `MemberAccessUnavailable` проверяет режимы мобильного приложения |
+| [mdclasses-adopted-form-handlers](mdclasses-adopted-form-handlers) | У слитой заимствованной формы теряются обработчики событий из `Form.xml` расширения, и BSL LS помечает их `UnusedLocalMethod` |
+| [mdclasses-gantt-table](mdclasses-gantt-table) | Таблица поля диаграммы Ганта (`<Table>` внутри `<GanttChartField>`) не попадает в элементы формы, её обработчики получают `UnusedLocalMethod` |
+| [bsl-ls-fp-typo-default-dictionary](bsl-ls-fp-typo-default-dictionary) | Без объекта параметров `Typo` не применяет встроенный словарь исключений |

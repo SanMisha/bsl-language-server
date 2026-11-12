@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" version="2.11">
+  <Form uuid="61fe4abe-cae9-47d8-ba01-21489aeae959">
+    <InternalInfo>
+      <xr:PropertyState>
+        <xr:Property>Form</xr:Property>
+        <xr:State>Extended</xr:State>
+      </xr:PropertyState>
+    </InternalInfo>
+    <Properties>
+      <ObjectBelonging>Adopted</ObjectBelonging>
+      <Name>ФормаДокумента</Name>
+      <ExtendedConfigurationObject>8c52339a-603d-41f2-8338-a4bd33404ca7</ExtendedConfigurationObject>
+      <FormType>Managed</FormType>
+    </Properties>
+  </Form>
+</MetaDataObject>

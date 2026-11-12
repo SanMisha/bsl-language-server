@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.21">
+	<Events>
+		<Event name="OnCreateAtServer" callType="Before">Расш1_ПриСозданииНаСервереПеред</Event>
+		<Event name="BeforeWriteAtServer" callType="After">Расш1_ПередЗаписьюНаСервереПосле</Event>
+	</Events>
+	<ChildItems>
+		<InputField name="Номер" id="1">
+			<DataPath>Объект.Number</DataPath>
+			<ContextMenu name="НомерКонтекстноеМеню" id="2"/>
+			<ExtendedTooltip name="НомерРасширеннаяПодсказка" id="3"/>
+			<Events>
+				<Event name="OnChange" callType="After">Расш1_НомерПриИзмененииПосле</Event>
+			</Events>
+		</InputField>
+	</ChildItems>
+	<Attributes/>
+	<BaseForm version="2.21">
+		<ChildItems>
+			<InputField name="Номер" id="1">
+				<DataPath>Объект.Number</DataPath>
+				<ContextMenu name="НомерКонтекстноеМеню" id="2"/>
+				<ExtendedTooltip name="НомерРасширеннаяПодсказка" id="3"/>
+			</InputField>
+		</ChildItems>
+		<Attributes/>
+	</BaseForm>
+</Form>

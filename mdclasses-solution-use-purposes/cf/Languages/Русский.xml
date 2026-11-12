@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.21">
+	<Language uuid="88618e59-cd62-497c-a4b8-8d48a6ed1b03">
+		<InternalInfo/>
+		<Properties>
+			<Name>Русский</Name>
+			<Comment/>
+			<LanguageCode>ru</LanguageCode>
+		</Properties>
+	</Language>
+</MetaDataObject>

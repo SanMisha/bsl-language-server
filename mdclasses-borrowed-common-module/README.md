@@ -20,15 +20,21 @@ bsl-ls.json         настройки analyze: только CompilationDirectiv
 ./run.sh /путь/к/bsl-language-server-1.1.0-rc.9-exec.jar
 ```
 
-Если архив распаковался без признака исполняемого файла — `bash run.sh …`. Нужны JDK 21+ (`java`, `javac`, `jar`) и `jq`. mdclasses и её зависимости скрипт берёт из jar-а BSL LS (`BOOT-INF/lib`). Сначала он компилирует `SolutionProbe.java` и вызывает `MDClasses.createSolution` на обоих вариантах, затем запускает `analyze` BSL LS: основу вместе с расширением и, для сравнения, одно расширение. Другая сборка mdclasses подставляется в первый шаг через `MDCLASSES_JAR=/путь/к/mdclasses.jar`, на `analyze` эта переменная не влияет.
+Если архив распаковался без признака исполняемого файла — `bash run.sh …`. Нужны JDK 21+ (`java`, `javac`, `jar`) и `jq`. mdclasses и её зависимости скрипт берёт из jar-а BSL LS (`BOOT-INF/lib`). Сначала он компилирует `SolutionProbe.java` и вызывает `MDClasses.createSolution` на обоих вариантах, затем запускает `analyze` BSL LS: основу вместе с расширением и, для сравнения, одно расширение. Другая сборка mdclasses подставляется в первый шаг через `MDCLASSES_JAR=/путь/к/mdclasses.jar`. На `analyze` эта переменная не влияет: он всегда работает на mdclasses из jar-а BSL LS, поэтому после исправления его раздел вывода не изменится.
 
 ## Что должно быть
 
-Решение находит `cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl`: `Solution.findChild(uri)` — `CommonModule.ОбщийМодуль1`, тип — `CommonModule`, а у слитого `CommonModule.ОбщийМодуль1` два модуля, как у документа. Итог — «ошибка не воспроизводится», код выхода 0.
+Для `cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl` в обоих вариантах выполнены три условия:
+
+- `Solution.findChild(uri)` — `CommonModule.ОбщийМодуль1`;
+- `getModuleTypeByURI(uri)` — `CommonModule`;
+- среди `getModules()` слитого `CommonModule.ОбщийМодуль1` есть модуль расширения, а в `with-base-bsl` — и модуль основы. Путь основы без файла в `without-base-bsl` не проверяется.
+
+Тогда зонд печатает «Итог: ошибка не воспроизводится — выполнены все условия», а скрипт завершается с кодом 0. Код 1 — ошибка воспроизводится, в строке «Итог» перечислены невыполненные условия. Код 2 — сбой: зонд не собрался, упал, напечатал «Итог: сбой» или не одну строку «Итог»; `analyze` упал, завис или не записал отчёт. Причину и конец лога скрипт выводит в stderr.
 
 ## Что получается
 
-BSL LS 1.1.0-rc.9 (внутри mdclasses 0.21.0), macOS, OpenJDK 21:
+BSL LS 1.1.0-rc.9 (внутри mdclasses 0.21.0), macOS, OpenJDK 21, код выхода 1:
 
 ```text
 BSL LS: bsl-language-server-1.1.0-rc.9-exec.jar
@@ -47,7 +53,7 @@ mdclasses в jar-е BSL LS: 0.21.0
   Модули объектов в слитой конфигурации, getModules():
     CommonModule.ОбщийМодуль1: cf/CommonModules/ОбщийМодуль1/Ext/Module.bsl
     Document.Документ1: cf/Documents/Документ1/Ext/ObjectModule.bsl, cfe/Documents/Документ1/Ext/ObjectModule.bsl
-  Итог: решение не знает cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl, а расширение знает — ошибка воспроизводится
+  Итог: ошибка воспроизводится — Solution.findChild(uri) = —, нужно CommonModule.ОбщийМодуль1; getModuleTypeByURI(uri) = UNKNOWN, нужно CommonModule; среди модулей слитого CommonModule.ОбщийМодуль1 нет cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl
 
 == mdclasses, without-base-bsl
   mdclasses: mdclasses-0.21.0.jar
@@ -59,7 +65,7 @@ mdclasses в jar-е BSL LS: 0.21.0
   Модули объектов в слитой конфигурации, getModules():
     CommonModule.ОбщийМодуль1: cf/CommonModules/ОбщийМодуль1/Ext/Module.bsl (файла нет)
     Document.Документ1: cfe/Documents/Документ1/Ext/ObjectModule.bsl
-  Итог: решение не знает cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl, а расширение знает — ошибка воспроизводится
+  Итог: ошибка воспроизводится — Solution.findChild(uri) = —, нужно CommonModule.ОбщийМодуль1; getModuleTypeByURI(uri) = UNKNOWN, нужно CommonModule; среди модулей слитого CommonModule.ОбщийМодуль1 нет cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl
 
 == BSL LS analyze --srcDir with-base-bsl (основа и расширение)
   cf/CommonModules/ОбщийМодуль1/Ext/Module.bsl         CommonModule.ОбщийМодуль1          CompilationDirectiveNeedLess
@@ -73,7 +79,7 @@ mdclasses в jar-е BSL LS: 0.21.0
   CommonModules/Расш1_ОбщийМодуль2/Ext/Module.bsl      CommonModule.Расш1_ОбщийМодуль2    CompilationDirectiveNeedLess
   Documents/Документ1/Ext/ObjectModule.bsl             Document.Документ1                 CompilationDirectiveNeedLess
 
-Итог: ошибка воспроизводится — mdclasses не находит по URI cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl
+Итог: ошибка воспроизводится — см. строки «Итог» зонда mdclasses выше
 ```
 
 В слитой конфигурации у документа оба модуля, а у общего модуля — только модуль основы. Без BSL основы это путь к файлу, которого нет.
@@ -84,4 +90,4 @@ mdclasses в jar-е BSL LS: 0.21.0
 
 ## Почему analyze в один поток
 
-`analyze` здесь запускается с `-Djava.util.concurrent.ForkJoinPool.common.parallelism=1`. При параллельном разборе этот пример зависает из-за другой ошибки BSL LS: модули объекта `Документ1` из основы и из расширения ждут друг друга. Это отдельный issue в 1c-syntax/bsl-language-server.
+`analyze` здесь запускается с `-Djava.util.concurrent.ForkJoinPool.common.parallelism=1`. При параллельном разборе этот пример зависает: модули объекта `Документ1` из основы и из расширения ждут друг друга. Это другая ошибка BSL LS, к этому issue она не относится.

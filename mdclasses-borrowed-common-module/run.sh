@@ -10,7 +10,11 @@
 # TIMEOUT — сколько секунд ждать один analyze (по умолчанию 120).
 # MDCLASSES_JAR — другой jar mdclasses для шага 1 (например, сборка с исправлением); analyze
 # в шаге 2 всегда работает на mdclasses из jar-а BSL LS.
-# Результаты — в out/<дата-время>/. Код выхода: 0 — ошибка не воспроизвелась, 1 — воспроизвелась, 2 — сбой.
+# Результаты — в out/<дата-время>/.
+# Код выхода по итогу зонда mdclasses в обоих вариантах:
+#   0 — ошибка не воспроизводится (выполнены все условия), 1 — воспроизводится,
+#   2 — сбой: нет инструментов, зонд не собрался или упал, напечатал не одну строку «Итог»
+#       или «Итог: сбой», analyze упал, завис или не записал отчёт.
 
 set -u
 
@@ -30,7 +34,6 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 TIMEOUT="${TIMEOUT:-120}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="$HERE/out/$STAMP"
-BORROWED="cfe/CommonModules/ОбщийМодуль1/Ext/Module.bsl"
 PID=""
 mkdir -p "$OUT/lib" "$OUT/classes"
 
@@ -41,6 +44,16 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+
+fail() { # <сообщение> [лог] — сообщение, конец лога и код выхода 2
+  echo >&2
+  echo "Сбой: $1" >&2
+  if [ -n "${2:-}" ] && [ -f "$2" ]; then
+    echo "Конец лога ${2#"$HERE"/}:" >&2
+    tail -n 20 "$2" | sed 's/^/  /' >&2
+  fi
+  exit 2
+}
 
 decode() { # %D0%9E… → UTF-8
   printf '%b' "${1//%/\\x}"
@@ -60,17 +73,15 @@ echo "Java: $(java -version 2>&1 | head -n 1)"
 # 1. Прямой вызов API mdclasses
 libs="$(jar tf "$JAR" | grep -E '^BOOT-INF/lib/(mdclasses|bsl-common-library|supportconf|utils)-[0-9][^/]*\.jar$')"
 if ! echo "$libs" | grep -q 'mdclasses-'; then
-  echo "В $JAR нет BOOT-INF/lib/mdclasses-*.jar" >&2
-  exit 2
+  fail "в $JAR нет BOOT-INF/lib/mdclasses-*.jar"
 fi
-(cd "$OUT/lib" && jar xf "$JAR" $libs) || exit 2
+(cd "$OUT/lib" && jar xf "$JAR" $libs) || fail "не удалось извлечь библиотеки из $JAR"
 echo "mdclasses в jar-е BSL LS: $(echo "$libs" | grep 'mdclasses-' | sed -e 's#.*/mdclasses-##' -e 's#\.jar$##')"
 probe_cp="$OUT/lib/BOOT-INF/lib/*"
 loader_path="$OUT/classes"
 if [ -n "${MDCLASSES_JAR:-}" ]; then
   if [ ! -f "$MDCLASSES_JAR" ]; then
-    echo "MDCLASSES_JAR: нет файла $MDCLASSES_JAR" >&2
-    exit 2
+    fail "MDCLASSES_JAR: нет файла $MDCLASSES_JAR"
   fi
   MDCLASSES_JAR="$(cd "$(dirname "$MDCLASSES_JAR")" && pwd)/$(basename "$MDCLASSES_JAR")"
   probe_cp="$MDCLASSES_JAR:$probe_cp"
@@ -78,19 +89,31 @@ if [ -n "${MDCLASSES_JAR:-}" ]; then
 fi
 if ! javac -encoding UTF-8 -proc:none -cp "$probe_cp" -d "$OUT/classes" "$HERE/SolutionProbe.java" \
   > "$OUT/javac.log" 2>&1; then
-  cat "$OUT/javac.log" >&2
-  exit 2
+  fail "SolutionProbe.java не скомпилировался" "$OUT/javac.log"
 fi
 
 reproduced=0
 for variant in with-base-bsl without-base-bsl; do
   echo
   echo "== mdclasses, $variant"
+  log="$OUT/probe-$variant.log"
   java -cp "$JAR" -Dloader.path="$loader_path" -Dloader.main=SolutionProbe \
-    org.springframework.boot.loader.launch.PropertiesLauncher "$HERE/$variant" > "$OUT/probe-$variant.log" 2>&1
-  grep '^| ' "$OUT/probe-$variant.log" | sed 's/^| /  /'
-  if grep -q '^| Итог: .*ошибка воспроизводится' "$OUT/probe-$variant.log"; then
+    org.springframework.boot.loader.launch.PropertiesLauncher "$HERE/$variant" > "$log" 2>&1
+  rc=$?
+  grep '^| ' "$log" | sed 's/^| /  /'
+  if [ "$rc" -ne 0 ]; then
+    fail "зонд mdclasses на $variant завершился с кодом $rc" "$log"
+  fi
+  verdicts="$(grep -c '^| Итог: ' "$log")"
+  if [ "$verdicts" -ne 1 ]; then
+    fail "зонд mdclasses на $variant напечатал строк «Итог»: $verdicts, а должен одну" "$log"
+  fi
+  if grep -q '^| Итог: сбой' "$log"; then
+    fail "зонд mdclasses не смог проверить $variant" "$log"
+  elif grep -q '^| Итог: ошибка воспроизводится' "$log"; then
     reproduced=1
+  elif ! grep -q '^| Итог: ошибка не воспроизводится' "$log"; then
+    fail "непонятная строка «Итог» зонда mdclasses на $variant" "$log"
   fi
 done
 
@@ -114,14 +137,20 @@ analyze() { # <имя запуска> <каталог для --srcDir>
       kill -9 "$PID" 2> /dev/null
       wait "$PID" 2> /dev/null
       PID=""
-      echo "  analyze не завершился за $TIMEOUT с, лог — out/$STAMP/$name/analyze.log"
-      return 1
+      fail "analyze --srcDir ${src#"$HERE"/} не завершился за $TIMEOUT с" "$dir/analyze.log"
     fi
     sleep 1
     waited=$((waited + 1))
   done
   wait "$PID"
+  rc=$?
   PID=""
+  if [ "$rc" -ne 0 ]; then
+    fail "analyze --srcDir ${src#"$HERE"/} завершился с кодом $rc" "$dir/analyze.log"
+  fi
+  if [ ! -s "$dir/bsl-json.json" ]; then
+    fail "analyze --srcDir ${src#"$HERE"/} не записал bsl-json.json" "$dir/analyze.log"
+  fi
   base="$(basename "$src")"
   jq -r --arg base "$base" '
     .fileinfos[]
@@ -133,7 +162,6 @@ analyze() { # <имя запуска> <каталог для --srcDir>
   while IFS="$(printf '\t')" read -r path ref codes; do
     printf '  %s %s %s\n' "$(pad "$(decode "$path")" 52)" "$(pad "$ref" 34)" "$codes"
   done
-  return 0
 }
 
 echo
@@ -145,8 +173,8 @@ analyze extension-only "$HERE/with-base-bsl/cfe"
 
 echo
 if [ "$reproduced" -eq 1 ]; then
-  echo "Итог: ошибка воспроизводится — mdclasses не находит по URI $BORROWED"
+  echo "Итог: ошибка воспроизводится — см. строки «Итог» зонда mdclasses выше"
   exit 1
 fi
-echo "Итог: ошибка не воспроизводится"
+echo "Итог: ошибка не воспроизводится — зонд mdclasses выполнил все условия в обоих вариантах"
 exit 0
